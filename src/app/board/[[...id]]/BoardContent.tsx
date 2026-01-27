@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, DragOverEvent, pointerWithin, useSensor, useSensors, PointerSensor } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
-import { Header, FloatingInput, InviteDialog, NicknameDialog, ClickHint, StickyNote, NoteGroup, ZoomControls } from '@/components';
+import { Header, FloatingInput, InviteDialog, TrashDialog, NicknameDialog, ClickHint, StickyNote, NoteGroup, ZoomControls } from '@/components';
 import { useBoard } from '@/hooks/useBoard';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useCanvasTransform } from '@/hooks/useCanvasTransform';
@@ -14,16 +14,21 @@ import { joinBoard } from '@/lib/firestore';
 // グループカラー
 const GROUP_COLORS = ['#8B5CF6', '#14B8A6', '#F472B6', '#3B82F6', '#F59E0B', '#EF4444'];
 
-export default function BoardPage() {
-  const params = useParams();
-  const boardId = params.id as string;
+interface BoardContentProps {
+  boardId: string;
+}
 
+export default function BoardContent({ boardId: initialBoardId }: BoardContentProps) {
+  // クライアントサイドでURLからボードIDを取得（静的エクスポート対応）
+  const pathname = usePathname();
+  const boardId = initialBoardId || pathname?.split('/board/')?.[1]?.replace(/\/$/, '') || '';
   const [storedUser, setStoredUser] = useLocalStorage<{ odclientId: string; nickname: string } | null>(
     'sticky-user',
     null
   );
   const [showNicknameDialog, setShowNicknameDialog] = useState(false);
   const [showInviteDialog, setShowInviteDialog] = useState(false);
+  const [showTrashDialog, setShowTrashDialog] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeDragData, setActiveDragData] = useState<{ type: string; id: string; fromGroup?: boolean } | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -59,6 +64,7 @@ export default function BoardPage() {
   const {
     board,
     stickies,
+    archivedStickies,
     groups,
     participants,
     loading,
@@ -67,7 +73,8 @@ export default function BoardPage() {
     updateStickyPosition,
     updateStickyContent,
     updateStickyGroup,
-    removeSticky,
+    archiveStickyNote,
+    restoreStickyNote,
     likeSticky,
     addGroup,
     updateGroupName,
@@ -332,6 +339,15 @@ export default function BoardPage() {
     });
   };
 
+  // boardId が空の場合（クライアントサイドでまだ取得中）
+  if (!boardId) {
+    return (
+      <div className="min-h-screen bg-zinc-100 flex items-center justify-center">
+        <div className="text-zinc-500">読み込み中...</div>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-zinc-100 flex items-center justify-center">
@@ -355,9 +371,11 @@ export default function BoardPage() {
         boardName={board.name}
         teamName={board.teamName}
         stickyCount={stickies.length}
+        archivedCount={archivedStickies.length}
         isAnonymous={board.isAnonymous}
         participants={participants}
         onInviteClick={() => setShowInviteDialog(true)}
+        onTrashClick={() => setShowTrashDialog(true)}
       />
 
       {/* Canvas */}
@@ -410,7 +428,7 @@ export default function BoardPage() {
                 onDisband={() => handleDisbandGroup(group.id)}
                 onStickyLike={likeSticky}
                 onStickyEdit={updateStickyContent}
-                onStickyDelete={removeSticky}
+                onStickyDelete={archiveStickyNote}
               />
             ))}
 
@@ -430,7 +448,7 @@ export default function BoardPage() {
                 rotation={(index % 2 === 0 ? -1 : 1) * (1 + Math.random())}
                 onLike={() => likeSticky(sticky.id)}
                 onEdit={(content) => updateStickyContent(sticky.id, content)}
-                onDelete={() => removeSticky(sticky.id)}
+                onDelete={() => archiveStickyNote(sticky.id)}
               />
             ))}
 
@@ -496,6 +514,13 @@ export default function BoardPage() {
       {showNicknameDialog && <NicknameDialog onSubmit={handleJoin} />}
       {showInviteDialog && (
         <InviteDialog boardId={boardId} onClose={() => setShowInviteDialog(false)} />
+      )}
+      {showTrashDialog && (
+        <TrashDialog
+          archivedStickies={archivedStickies}
+          onRestore={restoreStickyNote}
+          onClose={() => setShowTrashDialog(false)}
+        />
       )}
     </div>
   );

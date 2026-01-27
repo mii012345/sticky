@@ -4,6 +4,7 @@ export { StickyNote } from './StickyNote';
 export { NoteGroup } from './NoteGroup';
 export { FloatingInput } from './FloatingInput';
 export { InviteDialog } from './InviteDialog';
+export { TrashDialog } from './TrashDialog';
 export { NicknameDialog } from './NicknameDialog';
 export { ClickHint } from './ClickHint';
 export { BoardCard, NewBoardCard } from './BoardCard';

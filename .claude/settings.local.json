@@ -7,7 +7,8 @@
       "Bash(mise use:*)",
       "Bash(mise exec:*)",
       "Bash(mise list:*)",
-      "Bash(asdf list:*)"
+      "Bash(asdf list:*)",
+      "Bash(./node_modules/.bin/tsc:*)"
     ]
   }
 }

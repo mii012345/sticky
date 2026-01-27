@@ -2,5 +2,19 @@
   "firestore": {
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
+  },
+  "hosting": {
+    "public": "out",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "rewrites": [
+      {
+        "source": "/board/**",
+        "destination": "/board/index.html"
+      },
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
   }
 }

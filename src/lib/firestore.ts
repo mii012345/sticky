@@ -202,6 +202,22 @@ export async function deleteSticky(stickyId: string): Promise<void> {
   await deleteDoc(doc(db, 'stickies', stickyId));
 }
 
+export async function archiveSticky(stickyId: string): Promise<void> {
+  await updateDoc(doc(db, 'stickies', stickyId), {
+    isArchived: true,
+    archivedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function restoreSticky(stickyId: string): Promise<void> {
+  await updateDoc(doc(db, 'stickies', stickyId), {
+    isArchived: deleteField(),
+    archivedAt: deleteField(),
+    updatedAt: serverTimestamp(),
+  });
+}
+
 export async function toggleLike(stickyId: string, odclientId: string): Promise<void> {
   const stickyDoc = await getDoc(doc(db, 'stickies', stickyId));
   if (!stickyDoc.exists()) return;
@@ -227,6 +243,28 @@ export function subscribeToStickies(
     collection(db, 'stickies'),
     where('boardId', '==', boardId),
     orderBy('createdAt', 'asc')
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    const stickies = snapshot.docs
+      .map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      } as Sticky))
+      .filter((sticky) => !sticky.isArchived);
+    callback(stickies);
+  });
+}
+
+export function subscribeToArchivedStickies(
+  boardId: string,
+  callback: (stickies: Sticky[]) => void
+) {
+  const q = query(
+    collection(db, 'stickies'),
+    where('boardId', '==', boardId),
+    where('isArchived', '==', true),
+    orderBy('archivedAt', 'desc')
   );
 
   return onSnapshot(q, (snapshot) => {

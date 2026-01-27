@@ -25,6 +25,8 @@ export interface Sticky {
   orderInGroup?: number; // グループ内での並び順（0から始まる）
   color?: string;
   likes: string[];
+  isArchived?: boolean; // アーカイブ（ゴミ箱）フラグ
+  archivedAt?: Timestamp; // アーカイブ日時
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -55,9 +57,10 @@ export interface BoardClient extends Omit<Board, 'createdAt' | 'updatedAt' | 'ti
   timerStartedAt?: number;
 }
 
-export interface StickyClient extends Omit<Sticky, 'createdAt' | 'updatedAt'> {
+export interface StickyClient extends Omit<Sticky, 'createdAt' | 'updatedAt' | 'archivedAt'> {
   createdAt: number;
   updatedAt: number;
+  archivedAt?: number;
 }
 
 export interface GroupClient extends Omit<Group, 'createdAt'> {

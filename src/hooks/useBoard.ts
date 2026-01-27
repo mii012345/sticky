@@ -5,11 +5,13 @@ import { Board, Sticky, Group, Participant } from '@/types';
 import {
   subscribeToBoardChanges,
   subscribeToStickies,
+  subscribeToArchivedStickies,
   subscribeToGroups,
   subscribeToParticipants,
   createSticky,
   updateSticky,
-  deleteSticky,
+  archiveSticky,
+  restoreSticky,
   toggleLike,
   createGroup,
   updateGroup,
@@ -20,6 +22,7 @@ import {
 interface UseBoardReturn {
   board: Board | null;
   stickies: Sticky[];
+  archivedStickies: Sticky[];
   groups: Group[];
   participants: Participant[];
   loading: boolean;
@@ -28,7 +31,8 @@ interface UseBoardReturn {
   updateStickyPosition: (stickyId: string, x: number, y: number) => Promise<void>;
   updateStickyContent: (stickyId: string, content: string) => Promise<void>;
   updateStickyGroup: (stickyId: string, groupId: string | undefined) => Promise<void>;
-  removeSticky: (stickyId: string) => Promise<void>;
+  archiveStickyNote: (stickyId: string) => Promise<void>;
+  restoreStickyNote: (stickyId: string) => Promise<void>;
   likeSticky: (stickyId: string) => Promise<void>;
   addGroup: (name: string, x: number, y: number) => Promise<string>;
   updateGroupName: (groupId: string, name: string) => Promise<void>;
@@ -44,6 +48,7 @@ export function useBoard(
 ): UseBoardReturn {
   const [board, setBoard] = useState<Board | null>(null);
   const [stickies, setStickies] = useState<Sticky[]>([]);
+  const [archivedStickies, setArchivedStickies] = useState<Sticky[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,12 +71,14 @@ export function useBoard(
     });
 
     const unsubscribeStickies = subscribeToStickies(boardId, setStickies);
+    const unsubscribeArchivedStickies = subscribeToArchivedStickies(boardId, setArchivedStickies);
     const unsubscribeGroups = subscribeToGroups(boardId, setGroups);
     const unsubscribeParticipants = subscribeToParticipants(boardId, setParticipants);
 
     return () => {
       unsubscribeBoard();
       unsubscribeStickies();
+      unsubscribeArchivedStickies();
       unsubscribeGroups();
       unsubscribeParticipants();
     };
@@ -114,8 +121,12 @@ export function useBoard(
     []
   );
 
-  const removeSticky = useCallback(async (stickyId: string) => {
-    await deleteSticky(stickyId);
+  const archiveStickyNote = useCallback(async (stickyId: string) => {
+    await archiveSticky(stickyId);
+  }, []);
+
+  const restoreStickyNote = useCallback(async (stickyId: string) => {
+    await restoreSticky(stickyId);
   }, []);
 
   const likeSticky = useCallback(
@@ -162,6 +173,7 @@ export function useBoard(
   return {
     board,
     stickies,
+    archivedStickies,
     groups,
     participants,
     loading,
@@ -170,7 +182,8 @@ export function useBoard(
     updateStickyPosition,
     updateStickyContent,
     updateStickyGroup,
-    removeSticky,
+    archiveStickyNote,
+    restoreStickyNote,
     likeSticky,
     addGroup,
     updateGroupName,

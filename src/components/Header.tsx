@@ -1,6 +1,6 @@
 'use client';
 
-import { StickyNote, UserPlus } from 'lucide-react';
+import { StickyNote, UserPlus, Trash2 } from 'lucide-react';
 import { AvatarGroup } from './Avatar';
 import { Participant } from '@/types';
 
@@ -8,18 +8,22 @@ interface HeaderProps {
   boardName: string;
   teamName?: string;
   stickyCount: number;
+  archivedCount: number;
   isAnonymous?: boolean;
   participants: Participant[];
   onInviteClick: () => void;
+  onTrashClick: () => void;
 }
 
 export function Header({
   boardName,
   teamName,
   stickyCount,
+  archivedCount,
   isAnonymous,
   participants,
   onInviteClick,
+  onTrashClick,
 }: HeaderProps) {
   return (
     <header className="flex items-center justify-between h-16 w-full">
@@ -65,6 +69,19 @@ export function Header({
             avatarColor: p.avatarColor,
           }))}
         />
+
+        {/* Trash Button */}
+        <button
+          onClick={onTrashClick}
+          className="relative flex items-center justify-center w-10 h-10 rounded-full bg-zinc-100 hover:bg-zinc-200 transition-colors"
+        >
+          <Trash2 className="w-[18px] h-[18px] text-zinc-500" />
+          {archivedCount > 0 && (
+            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-xs font-medium flex items-center justify-center">
+              {archivedCount}
+            </span>
+          )}
+        </button>
 
         {/* Invite Button */}
         <button
