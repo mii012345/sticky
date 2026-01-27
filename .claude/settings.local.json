@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --use-npm --yes)",
+      "Bash(mise install:*)",
+      "Bash(mise use:*)",
+      "Bash(mise exec:*)",
+      "Bash(mise list:*)",
+      "Bash(asdf list:*)"
+    ]
+  }
+}
