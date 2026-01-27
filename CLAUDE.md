@@ -1,5 +1,9 @@
 # Sticky プロジェクト CLAUDE.md
 
+## リポジトリ
+
+- **GitHub**: https://github.com/mii012345/sticky
+
 ## デプロイ
 
 - **ホスティング**: Firebase Hosting
