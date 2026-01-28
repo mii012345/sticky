@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { usePathname } from 'next/navigation';
-import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, DragOverEvent, pointerWithin, useSensor, useSensors, PointerSensor } from '@dnd-kit/core';
+import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, DragOverEvent, rectIntersection, useSensor, useSensors, PointerSensor } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import { Header, FloatingInput, InviteDialog, TrashDialog, NicknameDialog, ClickHint, StickyNote, NoteGroup, ZoomControls } from '@/components';
 import { useBoard } from '@/hooks/useBoard';
@@ -31,6 +31,8 @@ export default function BoardContent({ boardId: initialBoardId }: BoardContentPr
   const [showTrashDialog, setShowTrashDialog] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeDragData, setActiveDragData] = useState<{ type: string; id: string; fromGroup?: boolean } | null>(null);
+  // 最前面に表示する要素のID（直近で触った付箋またはグループ）
+  const [frontElementId, setFrontElementId] = useState<string | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
 
   // ズーム・パン機能
@@ -38,6 +40,7 @@ export default function BoardContent({ boardId: initialBoardId }: BoardContentPr
     scale,
     position,
     isPanning,
+    canvasElement,
     canvasCallbackRef,
     handleMouseDown: handlePanMouseDown,
     handleMouseMove: handlePanMouseMove,
@@ -46,6 +49,7 @@ export default function BoardContent({ boardId: initialBoardId }: BoardContentPr
     zoomIn,
     zoomOut,
     resetTransform,
+    setTransform,
     screenToCanvas,
   } = useCanvasTransform();
 
@@ -125,6 +129,78 @@ export default function BoardContent({ boardId: initialBoardId }: BoardContentPr
     [addSticky, screenToCanvas]
   );
 
+  // 画面にフィット機能
+  const handleFitToScreen = useCallback(() => {
+    if (!canvasElement) return;
+
+    // 付箋とグループのバウンディングボックスを計算
+    const STICKY_WIDTH = 180;
+    const STICKY_HEIGHT = 120;
+    const GROUP_WIDTH = 220;
+    const GROUP_MIN_HEIGHT = 100;
+
+    // コンテンツがない場合はリセット
+    if (stickies.length === 0 && groups.length === 0) {
+      resetTransform();
+      return;
+    }
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    // グループ外の付箋
+    const ungrouped = stickies.filter((s) => !s.groupId);
+    ungrouped.forEach((sticky) => {
+      minX = Math.min(minX, sticky.x);
+      minY = Math.min(minY, sticky.y);
+      maxX = Math.max(maxX, sticky.x + STICKY_WIDTH);
+      maxY = Math.max(maxY, sticky.y + STICKY_HEIGHT);
+    });
+
+    // グループ
+    groups.forEach((group) => {
+      const groupStickies = stickies.filter((s) => s.groupId === group.id);
+      const groupHeight = Math.max(GROUP_MIN_HEIGHT, groupStickies.length * 60 + 80);
+      minX = Math.min(minX, group.x);
+      minY = Math.min(minY, group.y);
+      maxX = Math.max(maxX, group.x + GROUP_WIDTH);
+      maxY = Math.max(maxY, group.y + groupHeight);
+    });
+
+    // コンテンツがない場合（全て空）
+    if (minX === Infinity) {
+      resetTransform();
+      return;
+    }
+
+    // キャンバスのサイズを取得
+    const rect = canvasElement.getBoundingClientRect();
+    const canvasWidth = rect.width;
+    const canvasHeight = rect.height;
+
+    // コンテンツのサイズ
+    const contentWidth = maxX - minX;
+    const contentHeight = maxY - minY;
+
+    // パディング（余白）
+    const padding = 60;
+
+    // スケールを計算（コンテンツが画面に収まるように）
+    const scaleX = (canvasWidth - padding * 2) / contentWidth;
+    const scaleY = (canvasHeight - padding * 2) / contentHeight;
+    const newScale = Math.min(Math.max(0.25, Math.min(scaleX, scaleY)), 1.5);
+
+    // コンテンツをキャンバス中央に配置するための位置を計算
+    const contentCenterX = (minX + maxX) / 2;
+    const contentCenterY = (minY + maxY) / 2;
+    const newX = canvasWidth / 2 - contentCenterX * newScale;
+    const newY = canvasHeight / 2 - contentCenterY * newScale;
+
+    setTransform(newScale, { x: newX, y: newY });
+  }, [canvasElement, stickies, groups, resetTransform, setTransform]);
+
   const handleCanvasClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       // キャンバス上でクリックした位置に付箋を追加
@@ -146,7 +222,15 @@ export default function BoardContent({ boardId: initialBoardId }: BoardContentPr
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
     setActiveId(active.id as string);
-    setActiveDragData(active.data.current as { type: string; id: string; fromGroup?: boolean } | null);
+    const dragData = active.data.current as { type: string; id: string; fromGroup?: boolean } | null;
+    setActiveDragData(dragData);
+
+    // 直近で触った要素を最前面に表示
+    if (dragData?.type === 'sticky') {
+      setFrontElementId(`sticky-${dragData.id}`);
+    } else if (dragData?.type === 'group') {
+      setFrontElementId(`group-${dragData.id}`);
+    }
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
@@ -220,6 +304,26 @@ export default function BoardContent({ boardId: initialBoardId }: BoardContentPr
           const stickyIds = newOrder.map((s) => s.id);
           await reorderGroupStickies(stickyIds, groupId);
         }
+        return;
+      }
+
+      // 別のグループ内の付箋にドロップ → そのグループに移動
+      if (groupId && overData.groupId && groupId !== overData.groupId) {
+        const stickyId = activeData.id;
+        await updateStickyGroup(stickyId, overData.groupId);
+        return;
+      }
+    }
+
+    // グループ内の付箋を別のグループのドロップゾーンにドロップ
+    if (activeData?.type === 'grouped-sticky' && overId?.startsWith('group-')) {
+      const stickyId = activeData.id;
+      const targetGroupId = overData?.id;
+      const sourceGroupId = activeData.groupId;
+
+      // 別のグループに移動（同じグループの場合は何もしない）
+      if (targetGroupId && sourceGroupId !== targetGroupId) {
+        await updateStickyGroup(stickyId, targetGroupId);
         return;
       }
     }
@@ -381,7 +485,7 @@ export default function BoardContent({ boardId: initialBoardId }: BoardContentPr
       {/* Canvas */}
       <DndContext
         sensors={sensors}
-        collisionDetection={pointerWithin}
+        collisionDetection={rectIntersection}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
@@ -419,11 +523,11 @@ export default function BoardContent({ boardId: initialBoardId }: BoardContentPr
                 name={group.name}
                 x={group.x}
                 y={group.y}
-                rotation={(index % 2 === 0 ? -1 : 1) * (Math.random() * 2)}
                 color={GROUP_COLORS[index % GROUP_COLORS.length]}
                 stickies={getGroupStickies(group.id)}
                 isAnonymous={board.isAnonymous}
                 odclientId={odclientId}
+                isBroughtToFront={frontElementId === `group-${group.id}`}
                 onNameChange={(name) => updateGroupName(group.id, name)}
                 onDisband={() => handleDisbandGroup(group.id)}
                 onStickyLike={likeSticky}
@@ -433,7 +537,7 @@ export default function BoardContent({ boardId: initialBoardId }: BoardContentPr
             ))}
 
             {/* Ungrouped Stickies */}
-            {ungroupedStickies.map((sticky, index) => (
+            {ungroupedStickies.map((sticky) => (
               <StickyNote
                 key={sticky.id}
                 id={sticky.id}
@@ -445,7 +549,7 @@ export default function BoardContent({ boardId: initialBoardId }: BoardContentPr
                 isAnonymous={board.isAnonymous}
                 x={sticky.x}
                 y={sticky.y}
-                rotation={(index % 2 === 0 ? -1 : 1) * (1 + Math.random())}
+                isBroughtToFront={frontElementId === `sticky-${sticky.id}`}
                 onLike={() => likeSticky(sticky.id)}
                 onEdit={(content) => updateStickyContent(sticky.id, content)}
                 onDelete={() => archiveStickyNote(sticky.id)}
@@ -463,6 +567,7 @@ export default function BoardContent({ boardId: initialBoardId }: BoardContentPr
             onZoomIn={zoomIn}
             onZoomOut={zoomOut}
             onReset={resetTransform}
+            onFit={handleFitToScreen}
           />
         </div>
 
@@ -471,12 +576,11 @@ export default function BoardContent({ boardId: initialBoardId }: BoardContentPr
           {activeId && activeDragData?.type === 'sticky' && (() => {
             const sticky = stickies.find((s) => s.id === activeDragData.id);
             if (!sticky) return null;
-            const index = stickies.indexOf(sticky);
             return (
-              <div className="w-[180px] opacity-90 rotate-3">
+              <div className="w-[180px] animate-drag-float">
                 <div
-                  className="rounded-xl p-4 flex flex-col gap-2.5 shadow-lg"
-                  style={{ backgroundColor: sticky.groupId ? '#FEF3C7' : '#FEF3C7' }}
+                  className="rounded-xl p-4 flex flex-col gap-2.5 shadow-2xl ring-2 ring-violet-300/50"
+                  style={{ backgroundColor: '#FEF3C7' }}
                 >
                   <p className="text-[13px] text-amber-800 leading-relaxed">{sticky.content}</p>
                   <div className="flex items-center justify-between">
@@ -488,6 +592,20 @@ export default function BoardContent({ boardId: initialBoardId }: BoardContentPr
               </div>
             );
           })()}
+          {activeId && activeDragData?.type === 'grouped-sticky' && (() => {
+            const sticky = stickies.find((s) => s.id === activeDragData.id);
+            if (!sticky) return null;
+            return (
+              <div className="w-[140px] animate-drag-float">
+                <div
+                  className="rounded-[10px] p-2.5 flex flex-col gap-1.5 shadow-2xl ring-2 ring-violet-300/50"
+                  style={{ backgroundColor: '#FEF3C7' }}
+                >
+                  <p className="text-[12px] text-amber-800 leading-relaxed">{sticky.content}</p>
+                </div>
+              </div>
+            );
+          })()}
           {activeId && activeDragData?.type === 'group' && (() => {
             const group = groups.find((g) => g.id === activeDragData.id);
             if (!group) return null;
@@ -495,7 +613,7 @@ export default function BoardContent({ boardId: initialBoardId }: BoardContentPr
             const index = groups.indexOf(group);
             return (
               <div
-                className="w-[220px] rounded-2xl p-3 flex flex-col gap-2 opacity-90 shadow-lg"
+                className="w-[220px] rounded-2xl p-3 flex flex-col gap-2 shadow-2xl animate-drag-float ring-2 ring-white/30"
                 style={{ backgroundColor: GROUP_COLORS[index % GROUP_COLORS.length] }}
               >
                 <div className="flex items-center justify-between px-1">

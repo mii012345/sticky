@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Heart, Pencil, Trash2 } from 'lucide-react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
@@ -15,13 +15,14 @@ interface StickyNoteProps {
   isAnonymous?: boolean;
   x: number;
   y: number;
-  rotation?: number;
   color?: string;
   onLike: () => void;
   onEdit?: (content: string) => void;
   onDelete?: () => void;
   isInGroup?: boolean;
   isDragOverlay?: boolean;
+  isNew?: boolean; // 新規追加フラグ
+  isBroughtToFront?: boolean; // 最前面に表示するかどうか
 }
 
 export function StickyNote({
@@ -34,15 +35,26 @@ export function StickyNote({
   isAnonymous,
   x,
   y,
-  rotation = 0,
   color = '#FEF3C7',
   onLike,
   onEdit,
   onDelete,
   isInGroup = false,
+  isNew = false,
+  isBroughtToFront = false,
 }: StickyNoteProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(content);
+  const [showEntranceAnimation, setShowEntranceAnimation] = useState(isNew);
+  const [likeAnimating, setLikeAnimating] = useState(false);
+
+  // 新規追加時のアニメーションをリセット
+  useEffect(() => {
+    if (isNew) {
+      const timer = setTimeout(() => setShowEntranceAnimation(false), 400);
+      return () => clearTimeout(timer);
+    }
+  }, [isNew]);
 
   const { attributes, listeners, setNodeRef: setDraggableRef, transform, isDragging } = useDraggable({
     id: id,
@@ -60,6 +72,7 @@ export function StickyNote({
     setDroppableRef(node);
   };
 
+  // 仕様: 付箋は常に垂直（rotation: 0）- 斜めにしない
   const style = isInGroup
     ? {
         transform: isDragging ? undefined : CSS.Translate.toString(transform),
@@ -70,7 +83,7 @@ export function StickyNote({
         position: 'absolute' as const,
         left: x,
         top: y,
-        transform: isDragging ? `rotate(${rotation}deg)` : `${CSS.Translate.toString(transform)} rotate(${rotation}deg)`,
+        transform: isDragging ? undefined : CSS.Translate.toString(transform),
         opacity: isDragging ? 0 : 1,
         transition: isDragging ? 'none' : undefined,
       };
@@ -97,18 +110,27 @@ export function StickyNote({
     }
   };
 
+  const handleLikeClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setLikeAnimating(true);
+    onLike();
+    setTimeout(() => setLikeAnimating(false), 600);
+  };
+
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`w-[180px] rounded-xl p-4 flex flex-col gap-2.5 cursor-grab active:cursor-grabbing ${
-        isDragging ? 'z-50' : 'z-10'
-      } ${isOver ? 'ring-4 ring-purple-400 ring-opacity-70' : ''}`}
+      className={`w-[180px] cursor-grab active:cursor-grabbing
+        ${isDragging ? 'z-50' : isBroughtToFront ? 'z-30' : 'z-10'}
+        ${showEntranceAnimation ? 'animate-fade-in-up' : ''}`}
       {...attributes}
       {...listeners}
     >
       <div
-        className="rounded-xl p-4 flex flex-col gap-2.5"
+        className={`rounded-xl p-4 flex flex-col gap-2.5 transition-all duration-200
+          ${!isDragging && !isInGroup ? 'hover:shadow-lg' : ''}
+          ${isOver ? 'ring-4 ring-purple-400 ring-opacity-70 animate-pulse-glow' : ''}`}
         style={{ backgroundColor: color }}
       >
         {isEditing ? (
@@ -137,16 +159,19 @@ export function StickyNote({
           <div className="flex items-center gap-2">
             {/* Like Button */}
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onLike();
-              }}
-              className="flex items-center gap-1 text-amber-700/70 hover:text-red-500 transition-colors"
+              onClick={handleLikeClick}
+              className="flex items-center gap-1 text-amber-700/70 hover:text-red-500 transition-all duration-200 hover:scale-110 active:scale-95"
             >
               <Heart
-                className={`w-3.5 h-3.5 ${isLiked ? 'fill-red-500 text-red-500' : ''}`}
+                className={`w-3.5 h-3.5 transition-all duration-200
+                  ${isLiked ? 'fill-red-500 text-red-500' : ''}
+                  ${likeAnimating ? 'animate-heart-beat' : ''}`}
               />
-              {likes > 0 && <span className="text-xs">{likes}</span>}
+              {likes > 0 && (
+                <span className={`text-xs transition-all duration-200 ${likeAnimating ? 'scale-125' : ''}`}>
+                  {likes}
+                </span>
+              )}
             </button>
 
             {/* Edit & Delete (Owner only) */}
@@ -157,7 +182,7 @@ export function StickyNote({
                     e.stopPropagation();
                     setIsEditing(true);
                   }}
-                  className="text-amber-700/50 hover:text-amber-700 transition-colors"
+                  className="text-amber-700/50 hover:text-amber-700 transition-all duration-200 hover:scale-125 active:scale-95"
                 >
                   <Pencil className="w-3.5 h-3.5" />
                 </button>
@@ -166,7 +191,7 @@ export function StickyNote({
                     e.stopPropagation();
                     onDelete?.();
                   }}
-                  className="text-amber-700/50 hover:text-red-500 transition-colors"
+                  className="text-amber-700/50 hover:text-red-500 transition-all duration-200 hover:scale-125 active:scale-95"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>

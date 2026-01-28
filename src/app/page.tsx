@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus } from 'lucide-react';
-import { getBoardsWithStats } from '@/lib/firestore';
+import { getMyBoardsWithStats } from '@/lib/firestore';
 import { BoardCard, NewBoardCard } from '@/components/BoardCard';
 import { Board, Participant } from '@/types';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
@@ -27,7 +27,12 @@ export default function Home() {
   useEffect(() => {
     async function loadBoards() {
       try {
-        const boardsData = await getBoardsWithStats();
+        // clientId がない場合は空配列を返す
+        if (!storedUser?.odclientId) {
+          setBoards([]);
+          return;
+        }
+        const boardsData = await getMyBoardsWithStats(storedUser.odclientId);
         setBoards(boardsData);
       } catch (error) {
         console.error('Failed to load boards:', error);
@@ -37,7 +42,7 @@ export default function Home() {
     }
 
     loadBoards();
-  }, []);
+  }, [storedUser?.odclientId]);
 
   const handleCreateBoard = () => {
     router.push('/create');
@@ -55,7 +60,7 @@ export default function Home() {
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-violet-500" />
             <span className="text-2xl font-bold text-zinc-900 font-['Plus_Jakarta_Sans']">
-              Sticky
+              CONERU
             </span>
           </div>
           {storedUser && (

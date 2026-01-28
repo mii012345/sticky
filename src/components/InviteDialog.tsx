@@ -26,14 +26,14 @@ export function InviteDialog({ boardId, onClose }: InviteDialogProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-6 w-[400px] shadow-2xl">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-backdrop-fade">
+      <div className="bg-white rounded-2xl p-6 w-[400px] shadow-2xl animate-scale-in">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold text-zinc-900">チームメンバーを招待</h2>
           <button
             onClick={onClose}
-            className="p-1 text-zinc-400 hover:text-zinc-600 transition-colors"
+            className="p-1 text-zinc-400 hover:text-zinc-600 transition-all duration-200 hover:scale-110 hover:rotate-90 active:scale-95"
           >
             <X className="w-5 h-5" />
           </button>
@@ -55,7 +55,7 @@ export function InviteDialog({ boardId, onClose }: InviteDialogProps) {
             />
             <button
               onClick={handleCopy}
-              className={`h-12 px-4 rounded-xl flex items-center gap-2 text-sm font-medium transition-colors ${
+              className={`h-12 px-4 rounded-xl flex items-center gap-2 text-sm font-medium transition-all duration-200 hover:scale-105 active:scale-95 ${
                 copied
                   ? 'bg-green-500 text-white'
                   : 'bg-violet-500 text-white hover:bg-violet-600'
@@ -63,7 +63,7 @@ export function InviteDialog({ boardId, onClose }: InviteDialogProps) {
             >
               {copied ? (
                 <>
-                  <Check className="w-4 h-4" />
+                  <Check className="w-4 h-4 animate-success-check" />
                   コピー完了
                 </>
               ) : (

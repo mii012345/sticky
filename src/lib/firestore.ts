@@ -133,6 +133,106 @@ export async function getBoardsWithStats(): Promise<Array<{
   return boardsWithStats;
 }
 
+// 自分が作成または参加しているボードのみ取得
+export async function getMyBoardsWithStats(clientId: string): Promise<Array<{
+  board: Board;
+  stickyCount: number;
+  participantCount: number;
+  participants: Participant[];
+}>> {
+  // 1. 自分が作成したボードを取得
+  const createdBoardsQuery = query(
+    collection(db, 'boards'),
+    where('createdBy', '==', clientId),
+    orderBy('updatedAt', 'desc')
+  );
+  const createdBoardsSnapshot = await getDocs(createdBoardsQuery);
+  const createdBoards = createdBoardsSnapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+  })) as Board[];
+
+  // 2. 自分が参加しているボードのIDを取得
+  const participantsQuery = query(
+    collection(db, 'participants'),
+    where('odclientId', '==', clientId)
+  );
+  const participantsSnapshot = await getDocs(participantsQuery);
+  const participatedBoardIds = participantsSnapshot.docs.map(
+    (doc) => doc.data().boardId as string
+  );
+
+  // 3. 参加しているボードを取得（作成したボードと重複を除く）
+  const createdBoardIds = new Set(createdBoards.map((b) => b.id));
+  const uniqueParticipatedBoardIds = participatedBoardIds.filter(
+    (id) => !createdBoardIds.has(id)
+  );
+
+  let participatedBoards: Board[] = [];
+  if (uniqueParticipatedBoardIds.length > 0) {
+    // Firestoreの 'in' クエリは最大10件なので、分割して取得
+    const chunks = [];
+    for (let i = 0; i < uniqueParticipatedBoardIds.length; i += 10) {
+      chunks.push(uniqueParticipatedBoardIds.slice(i, i + 10));
+    }
+
+    const boardPromises = chunks.map(async (chunk) => {
+      const q = query(
+        collection(db, 'boards'),
+        where('__name__', 'in', chunk)
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Board[];
+    });
+
+    const results = await Promise.all(boardPromises);
+    participatedBoards = results.flat();
+  }
+
+  // 4. 全ボードをマージして updatedAt でソート
+  const allBoards = [...createdBoards, ...participatedBoards].sort((a, b) => {
+    const aTime = a.updatedAt?.toMillis?.() || 0;
+    const bTime = b.updatedAt?.toMillis?.() || 0;
+    return bTime - aTime;
+  });
+
+  // 5. 各ボードの統計情報を取得
+  const boardsWithStats = await Promise.all(
+    allBoards.map(async (board) => {
+      const stickiesQuery = query(
+        collection(db, 'stickies'),
+        where('boardId', '==', board.id)
+      );
+      const participantsQuery = query(
+        collection(db, 'participants'),
+        where('boardId', '==', board.id)
+      );
+
+      const [stickiesSnapshot, participantsSnapshot] = await Promise.all([
+        getDocs(stickiesQuery),
+        getDocs(participantsQuery),
+      ]);
+
+      const participants = participantsSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Participant[];
+
+      return {
+        board,
+        stickyCount: stickiesSnapshot.size,
+        participantCount: participantsSnapshot.size,
+        participants,
+      };
+    })
+  );
+
+  return boardsWithStats;
+}
+
 export function subscribeToBoardChanges(
   boardId: string,
   callback: (board: Board | null) => void

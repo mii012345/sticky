@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Sticky - チームブレインストーミングアプリ",
+  title: "CONERU - チームブレインストーミングアプリ",
   description: "チームでアイデアを出し合うためのリアルタイム付箋ボードアプリ",
 };
 

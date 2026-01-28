@@ -16,6 +16,7 @@ interface UseCanvasTransformReturn {
   scale: number;
   position: Position;
   isPanning: boolean;
+  canvasElement: HTMLDivElement | null;
   canvasCallbackRef: (node: HTMLDivElement | null) => void;
   handleMouseDown: (e: React.MouseEvent<HTMLDivElement>) => void;
   handleMouseMove: (e: React.MouseEvent<HTMLDivElement>) => void;
@@ -24,7 +25,7 @@ interface UseCanvasTransformReturn {
   zoomIn: () => void;
   zoomOut: () => void;
   resetTransform: () => void;
-  fitToScreen: () => void;
+  setTransform: (newScale: number, newPosition: Position) => void;
   screenToCanvas: (screenX: number, screenY: number, canvasRect: DOMRect) => Position;
 }
 
@@ -190,10 +191,11 @@ export function useCanvasTransform(
     setPosition({ x: 0, y: 0 });
   }, []);
 
-  // 画面にフィット（今は100%にリセットと同じ）
-  const fitToScreen = useCallback(() => {
-    resetTransform();
-  }, [resetTransform]);
+  // 外部からスケールとポジションを設定
+  const setTransform = useCallback((newScale: number, newPosition: Position) => {
+    setScale(Math.min(maxScale, Math.max(minScale, newScale)));
+    setPosition(newPosition);
+  }, [minScale, maxScale]);
 
   // スクリーン座標をキャンバス座標に変換
   const screenToCanvas = useCallback(
@@ -209,6 +211,7 @@ export function useCanvasTransform(
     scale,
     position,
     isPanning,
+    canvasElement,
     canvasCallbackRef,
     handleMouseDown,
     handleMouseMove,
@@ -217,7 +220,7 @@ export function useCanvasTransform(
     zoomIn,
     zoomOut,
     resetTransform,
-    fitToScreen,
+    setTransform,
     screenToCanvas,
   };
 }

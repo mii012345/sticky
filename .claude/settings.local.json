@@ -8,7 +8,8 @@
       "Bash(mise exec:*)",
       "Bash(mise list:*)",
       "Bash(asdf list:*)",
-      "Bash(./node_modules/.bin/tsc:*)"
+      "Bash(./node_modules/.bin/tsc:*)",
+      "Bash(export PATH=\"/usr/local/bin:/opt/homebrew/bin:$PATH\")"
     ]
   }
 }

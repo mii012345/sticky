@@ -11,8 +11,8 @@ interface TrashDialogProps {
 
 export function TrashDialog({ archivedStickies, onRestore, onClose }: TrashDialogProps) {
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-6 w-[480px] max-h-[600px] shadow-2xl flex flex-col">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-backdrop-fade">
+      <div className="bg-white rounded-2xl p-6 w-[480px] max-h-[600px] shadow-2xl flex flex-col animate-scale-in">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-zinc-900">
@@ -25,7 +25,7 @@ export function TrashDialog({ archivedStickies, onRestore, onClose }: TrashDialo
           </h2>
           <button
             onClick={onClose}
-            className="p-1 text-zinc-400 hover:text-zinc-600 transition-colors"
+            className="p-1 text-zinc-400 hover:text-zinc-600 transition-all duration-200 hover:scale-110 hover:rotate-90 active:scale-95"
           >
             <X className="w-5 h-5" />
           </button>
@@ -38,11 +38,12 @@ export function TrashDialog({ archivedStickies, onRestore, onClose }: TrashDialo
               <p className="text-sm">ゴミ箱は空です</p>
             </div>
           ) : (
-            <div className="space-y-2">
-              {archivedStickies.map((sticky) => (
+            <div className="space-y-2 stagger-children">
+              {archivedStickies.map((sticky, index) => (
                 <div
                   key={sticky.id}
-                  className="flex items-center gap-3 p-3 rounded-xl bg-zinc-50 hover:bg-zinc-100 transition-colors"
+                  className="flex items-center gap-3 p-3 rounded-xl bg-zinc-50 hover:bg-zinc-100 transition-all duration-200 hover:shadow-sm"
+                  style={{ animationDelay: `${index * 50}ms` }}
                 >
                   {/* Sticky preview */}
                   <div className="flex-1 min-w-0">
@@ -53,9 +54,9 @@ export function TrashDialog({ archivedStickies, onRestore, onClose }: TrashDialo
                   {/* Restore button */}
                   <button
                     onClick={() => onRestore(sticky.id)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-500 text-white text-sm font-medium hover:bg-violet-600 transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-500 text-white text-sm font-medium hover:bg-violet-600 transition-all duration-200 hover:scale-105 active:scale-95"
                   >
-                    <RotateCcw className="w-3.5 h-3.5" />
+                    <RotateCcw className="w-3.5 h-3.5 transition-transform hover:rotate-[-180deg] duration-300" />
                     復元
                   </button>
                 </div>

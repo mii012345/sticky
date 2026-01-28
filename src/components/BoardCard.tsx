@@ -44,7 +44,9 @@ export function BoardCard({
   return (
     <button
       onClick={onClick}
-      className="w-full sm:w-[384px] bg-white rounded-2xl border border-zinc-200 p-5 flex flex-col gap-4 hover:border-violet-300 hover:shadow-md transition-all text-left"
+      className="w-full sm:w-[384px] bg-white rounded-2xl border border-zinc-200 p-5 flex flex-col gap-4
+        hover:border-violet-300 hover:shadow-lg transition-all duration-300
+        hover:scale-[1.02] active:scale-[0.98] card-hover text-left"
     >
       {/* Header */}
       <div className="flex justify-between items-start">
@@ -79,18 +81,23 @@ export function BoardCard({
       {/* Footer */}
       <div className="flex items-center justify-between">
         <div className="flex -space-x-2">
-          {displayParticipants.map((participant) => (
+          {displayParticipants.map((participant, index) => (
             <div
               key={participant.id}
-              className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold text-white border-2 border-white"
-              style={{ backgroundColor: participant.avatarColor }}
+              className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold text-white border-2 border-white
+                transition-all duration-200 hover:scale-110 hover:z-10"
+              style={{
+                backgroundColor: participant.avatarColor,
+                transitionDelay: `${index * 50}ms`
+              }}
               title={participant.nickname}
             >
               {participant.nickname.charAt(0)}
             </div>
           ))}
           {participantCount > 3 && (
-            <div className="w-7 h-7 rounded-full bg-zinc-200 flex items-center justify-center text-xs font-semibold text-zinc-600 border-2 border-white">
+            <div className="w-7 h-7 rounded-full bg-zinc-200 flex items-center justify-center text-xs font-semibold text-zinc-600 border-2 border-white
+              transition-all duration-200 hover:scale-110 hover:z-10">
               +{participantCount - 3}
             </div>
           )}
@@ -107,12 +114,18 @@ export function NewBoardCard({ onClick }: { onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="w-full sm:w-[384px] h-[152px] bg-zinc-50 rounded-2xl border-2 border-dashed border-zinc-200 flex flex-col items-center justify-center gap-3 hover:border-violet-300 hover:bg-violet-50/50 transition-all"
+      className="w-full sm:w-[384px] h-[152px] bg-zinc-50 rounded-2xl border-2 border-dashed border-zinc-200
+        flex flex-col items-center justify-center gap-3
+        hover:border-violet-300 hover:bg-violet-50/50 transition-all duration-300
+        hover:scale-[1.02] active:scale-[0.98] group"
     >
-      <div className="w-12 h-12 rounded-full bg-zinc-100 flex items-center justify-center">
-        <span className="text-2xl text-zinc-400">+</span>
+      <div className="w-12 h-12 rounded-full bg-zinc-100 flex items-center justify-center
+        transition-all duration-300 group-hover:bg-violet-100 group-hover:scale-110">
+        <span className="text-2xl text-zinc-400 transition-all duration-300 group-hover:text-violet-500 group-hover:rotate-90">+</span>
       </div>
-      <span className="text-sm font-medium text-zinc-500">新しいボードを作成</span>
+      <span className="text-sm font-medium text-zinc-500 transition-colors duration-300 group-hover:text-violet-600">
+        新しいボードを作成
+      </span>
     </button>
   );
 }
